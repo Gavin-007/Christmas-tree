@@ -335,7 +335,7 @@
     };
 
     let scene, camera, renderer, composer;
-    let mainGroup, starGroup, bgGroup;
+    let mainGroup, bgGroup;
     let clock = new THREE.Clock();
     let particleSystem = [];
     let garlands = [];
@@ -379,7 +379,6 @@
       const container = document.getElementById('canvas-container');
       scene = new THREE.Scene();
       scene.background = new THREE.Color(CONFIG.colors.bg);
-      // 几乎去掉雾感，只留一点点深度
       scene.fog = new THREE.FogExp2(CONFIG.colors.bg, 0.003);
 
       camera = new THREE.PerspectiveCamera(
@@ -399,7 +398,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 0.78; // 降一点曝光
+      renderer.toneMappingExposure = 0.78;
       container.appendChild(renderer.domElement);
 
       bgGroup = new THREE.Group();
@@ -409,9 +408,6 @@
       mainGroup.rotation.x = 0.1;
       mainGroup.position.y = -2.5;
       scene.add(mainGroup);
-
-      starGroup = new THREE.Group();
-      mainGroup.add(starGroup);
     }
 
     // ===== 2D 背景（柔和散景 + 飘雪）=====
@@ -463,7 +459,7 @@
       const w = overlayW, h = overlayH;
       overlayCtx.clearRect(0, 0, w, h);
 
-      // 背景渐变：更薄，避免“雾”
+      // 背景渐变
       const grad = overlayCtx.createLinearGradient(0, 0, w, h);
       grad.addColorStop(0, 'rgba(50,80,120,0.20)');
       grad.addColorStop(0.4, 'rgba(5,8,12,0.14)');
@@ -471,7 +467,7 @@
       overlayCtx.fillStyle = grad;
       overlayCtx.fillRect(0, 0, w, h);
 
-      // 柔和散景
+      // 散景
       overlayCtx.save();
       overlayCtx.globalCompositeOperation = 'lighter';
       bokehLights.forEach(b => {
@@ -546,12 +542,11 @@
     function setupPostProcessing() {
       const renderScene = new RenderPass(scene, camera);
 
-      // Bloom 再柔一点，减少过曝
       const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.85, // strength
-        0.35, // radius
-        1.0   // threshold
+        0.85,
+        0.35,
+        1.0
       );
 
       composer = new EffectComposer(renderer);
@@ -832,25 +827,20 @@
       mainGroup.add(photoMeshGroup);
     }
 
-    // 花环 / 装饰带：
-    //   上面一圈：保持现在的小圈
-    //   下面一圈：用上一版更大的尺寸
+    // 花环 / 装饰带：两个都比之前小一圈，倾斜角控制在很小范围
     function createGarlands() {
       const h = CONFIG.particles.treeHeight;
       const halfH = h / 2;
-      const levels = [0.35, 0.62]; // 0.35 底部圈，0.62 上面圈
 
-      levels.forEach((t, idx) => {
-        const y = t * h - halfH;
-        let radius;
+      // 底部大圈 & 中上小圈，显式半径控制
+      const levelConfigs = [
+        { t: 0.38, radius: 4.6 }, // 底部圈
+        { t: 0.64, radius: 2.3 }  // 上面小圈
+      ];
 
-        if (idx === 0) {
-          // 底部圈：上一版比较大的尺寸
-          radius = CONFIG.particles.treeRadius * (1.0 - t) * 0.95 + 0.3;
-        } else {
-          // 上面圈：当前稍小、贴树一点的尺寸
-          radius = CONFIG.particles.treeRadius * (1.0 - t) * 0.75 + 0.2;
-        }
+      levelConfigs.forEach((conf, idx) => {
+        const y = conf.t * h - halfH;
+        const radius = conf.radius;
 
         const geo = new THREE.TorusGeometry(
           radius,
@@ -869,16 +859,15 @@
         });
         const ring = new THREE.Mesh(geo, mat);
         ring.position.y = y;
-        ring.rotation.x = Math.PI / 2;              // 保持水平
-        ring.rotation.z = (Math.random() - 0.5) * 0.1; // 约 ±6° 的轻微倾斜
+        ring.rotation.x = Math.PI / 2;                 // 完全水平
+        ring.rotation.z = (Math.random() - 0.5) * 0.1; // 约 ±5.7° 以内
         mainGroup.add(ring);
         garlands.push(ring);
       });
     }
 
-    // 顶部五角星灯头
+    // 顶部五角星灯头：直接绑在树尖上，跟树一起转，不再翻来翻去
     function createStarTopper() {
-      // 2D 五角星轮廓
       const starShape = new THREE.Shape();
       const outerR = 1.7;
       const innerR = 0.7;
@@ -917,19 +906,18 @@
       });
 
       const star = new THREE.Mesh(starGeo, starMat);
-      star.position.set(0, CONFIG.particles.treeHeight / 2 + 1.5, 0);
-      star.rotation.y = Math.PI / 5;        // 一个尖朝前
+      // 稍微离树尖一点点，避免完全嵌进去，但不会像悬空那么远
+      star.position.set(0, CONFIG.particles.treeHeight / 2 + 0.85, 0);
+      star.rotation.y = Math.PI / 5; // 一个尖朝前
       star.userData.baseRotY = star.rotation.y;
       star.castShadow = true;
 
-      // 中心小灯芯
       const innerGeo = new THREE.SphereGeometry(0.35, 24, 24);
       const innerMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
       const inner = new THREE.Mesh(innerGeo, innerMat);
       inner.position.set(0, 0, 0.15);
       star.add(inner);
 
-      // 柔和光晕
       const haloGeo = new THREE.PlaneGeometry(7, 7);
       const haloMat = new THREE.MeshBasicMaterial({
         map: new THREE.TextureLoader().load(
@@ -944,7 +932,7 @@
       const halo = new THREE.Mesh(haloGeo, haloMat);
       star.add(halo);
 
-      starGroup.add(star);
+      mainGroup.add(star);
       STATE.starMesh = star;
     }
 
@@ -1037,17 +1025,14 @@
       requestAnimationFrame(predictWebcam);
     }
 
-    // === 手势逻辑：带记忆的双阈值，更容易收回树 ===
     function processGestures(lm) {
       STATE.hand.detected = true;
 
-      // 手心位置控制视角
       const targetX = (lm[9].x - 0.5) * 2;
       const targetY = (lm[9].y - 0.5) * 2;
       STATE.hand.x += (targetX - STATE.hand.x) * 0.2;
       STATE.hand.y += (targetY - STATE.hand.y) * 0.2;
 
-      // 计算手指张开程度：手腕到 4 个指尖的平均距离
       const wrist = lm[0];
       const tips = [lm[8], lm[12], lm[16], lm[20]];
       let spread = 0;
@@ -1056,8 +1041,8 @@
       });
       spread /= tips.length;
 
-      const TO_TREE = 0.33;     // 当前是 SCATTER 时，小于这个就切回 TREE
-      const TO_SCATTER = 0.42;  // 当前是 TREE 时，大于这个才切成 SCATTER
+      const TO_TREE = 0.33;
+      const TO_SCATTER = 0.42;
 
       if (STATE.mode === 'SCATTER' && spread < TO_TREE) {
         STATE.mode = 'TREE';
@@ -1082,7 +1067,6 @@
         }
       });
 
-      // PC 鼠标
       document.addEventListener('mousemove', e => {
         if (STATE.hand.detected) return;
         const x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -1091,7 +1075,6 @@
         STATE.mouse.y = y;
       });
 
-      // 移动端触摸
       document.addEventListener(
         'touchmove',
         e => {
@@ -1106,7 +1089,6 @@
       );
     }
 
-    // BGM 开关逻辑（按钮文字自动切换）
     function setupBGM() {
       const bgm = document.getElementById('bgm');
       const btn = document.getElementById('bgm-toggle');
@@ -1173,25 +1155,21 @@
       bgGroup.rotation.y -= 0.05 * dt;
       bgGroup.rotation.z += 0.02 * dt;
 
-      // 顶部五角星：
-      //   1）starGroup 反向抵消 mainGroup 的 x/z 倾斜，让星星始终竖直
-      //   2）只保留绕 Y 轴的一点点“呼吸”缩放，不做自转
+      // 五角星：跟树一起转，只做轻微呼吸 & 细微 yaw，不再翻转错位
       if (STATE.starMesh) {
-        starGroup.rotation.x = -mainGroup.rotation.x;
-        starGroup.rotation.z = -mainGroup.rotation.z;
-        starGroup.rotation.y = 0;
-
         const baseRotY = STATE.starMesh.userData.baseRotY || 0;
-        STATE.starMesh.rotation.y = baseRotY;
+        STATE.starMesh.rotation.y =
+          baseRotY + Math.sin(STATE.time * 0.3) * 0.06;
+        STATE.starMesh.rotation.x = 0;
         STATE.starMesh.rotation.z = 0;
 
-        const s = 1.0 + Math.sin(STATE.time * 1.5) * 0.03;
+        const s = 1.0 + Math.sin(STATE.time * 1.3) * 0.03;
         STATE.starMesh.scale.set(s, s, s);
       }
 
       // 花环轻微转动
       garlands.forEach((g, idx) => {
-        g.rotation.y += (idx % 2 === 0 ? 0.1 : -0.06) * dt;
+        g.rotation.y += (idx % 2 === 0 ? 0.08 : -0.05) * dt;
         g.material.emissiveIntensity =
           0.18 + Math.sin(STATE.time * 1.2 + idx) * 0.12;
       });
@@ -1200,9 +1178,7 @@
         p.update(dt, STATE.time, STATE.mode)
       );
 
-      // 2D 背景层
       renderOverlay(dt);
-
       composer.render();
     }
 

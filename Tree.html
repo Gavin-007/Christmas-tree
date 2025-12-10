@@ -118,12 +118,8 @@
     }
 
     /* 上传区隐藏（以后想加照片再打开） */
-    .upload-wrapper {
-      display: none;
-    }
-    #file-input {
-      display: none;
-    }
+    .upload-wrapper { display: none; }
+    #file-input { display: none; }
 
     /* 左下整体面板：包含 BGM + 操作说明 */
     #bottom-left-panel {
@@ -195,13 +191,9 @@
       box-shadow: 0 0 10px rgba(212, 175, 55, 0.25);
     }
 
-    /* 摄像头预览隐藏，仅保留手势识别功能 */
-    #webcam-wrapper {
-      display: none;
-    }
-    #webcam {
-      display: none;
-    }
+    /* 摄像头预览整个隐藏，只保留手势识别功能 */
+    #webcam-wrapper,
+    #webcam,
     #webcam-preview {
       display: none;
     }
@@ -212,22 +204,16 @@
         font-size: clamp(26px, 7vw, 34px);
         letter-spacing: 5px;
       }
-
       #bottom-left-panel {
         left: 12px;
         bottom: 12px;
         gap: 6px;
       }
-
       #bgm-toggle {
         padding: 6px 14px;
         font-size: 11px;
       }
-
-      .inst-item {
-        font-size: 11px;
-      }
-
+      .inst-item { font-size: 11px; }
       .inst-icon {
         width: 26px;
         height: 26px;
@@ -362,7 +348,7 @@
     // 2D overlay
     let overlayCanvas, overlayCtx;
     let overlayW = 0,
-      overlayH = 0;
+        overlayH = 0;
     let snowflakes = [];
     let bokehLights = [];
 
@@ -474,8 +460,7 @@
 
     function renderOverlay(dt) {
       if (!overlayCtx) return;
-      const w = overlayW,
-        h = overlayH;
+      const w = overlayW, h = overlayH;
       overlayCtx.clearRect(0, 0, w, h);
 
       // 背景渐变：更薄，避免“雾”
@@ -497,15 +482,9 @@
         if (b.y < -b.r) b.y = h + b.r;
         if (b.y > h + b.r) b.y = -b.r;
 
-        const alpha =
-          b.baseAlpha + Math.sin(STATE.time * 0.4 + b.phase) * 0.02;
+        const alpha = b.baseAlpha + Math.sin(STATE.time * 0.4 + b.phase) * 0.02;
         const radial = overlayCtx.createRadialGradient(
-          b.x,
-          b.y,
-          0,
-          b.x,
-          b.y,
-          b.r
+          b.x, b.y, 0, b.x, b.y, b.r
         );
         radial.addColorStop(0, `rgba(255,255,255,${alpha * 1.5})`);
         radial.addColorStop(1, 'rgba(255,255,255,0)');
@@ -699,13 +678,10 @@
       }
 
       update(dt, time, mode) {
-        const target =
-          mode === 'SCATTER' ? this.posScatter : this.posTree;
+        const target = mode === 'SCATTER' ? this.posScatter : this.posTree;
 
-        const noiseY =
-          Math.sin(time * this.speed + this.offset) * 0.15;
-        const noiseX =
-          Math.cos(time * 0.5 * this.speed + this.offset) * 0.1;
+        const noiseY = Math.sin(time * this.speed + this.offset) * 0.15;
+        const noiseX = Math.cos(time * 0.5 * this.speed + this.offset) * 0.1;
 
         const dest = target.clone();
         if (mode === 'TREE') {
@@ -731,9 +707,8 @@
 
         let s = this.baseScale;
         if (this.isDust) {
-          s =
-            this.baseScale *
-            (0.5 + 0.5 * Math.sin(time * 3 + this.offset));
+          s = this.baseScale *
+              (0.5 + 0.5 * Math.sin(time * 3 + this.offset));
         } else if (mode === 'SCATTER') {
           s = this.baseScale * 1.15;
         }
@@ -857,59 +832,74 @@
       mainGroup.add(photoMeshGroup);
     }
 
-    // 花环 / 装饰带：两圈，更细更贴树身、半透明
+    // 花环 / 装饰带：两圈、轻一点
     function createGarlands() {
       const h = CONFIG.particles.treeHeight;
       const halfH = h / 2;
-
-      // 想只要 1 个圈：改成 const levels = [0.45];
-      const levels = [0.38, 0.68];
+      const levels = [0.32, 0.58]; // 只要中下 + 中上两圈
 
       levels.forEach((t, idx) => {
         const y = t * h - halfH;
-
-        // 更贴近树身，半径小一点
-        const radius = CONFIG.particles.treeRadius * (0.8 - t) + 0.3;
+        const radius =
+          CONFIG.particles.treeRadius * (1.05 - t) + 0.8;
 
         const geo = new THREE.TorusGeometry(
           radius,
-          0.05,          // 管子更细
+          0.08,
           24,
-          220
+          200
         );
         const mat = new THREE.MeshStandardMaterial({
-          color: 0xfff0c8,
+          color: 0xffe6aa,
           metalness: 0.9,
           roughness: 0.25,
           emissive: 0x775522,
-          emissiveIntensity: 0.18,
+          emissiveIntensity: 0.22,
           transparent: true,
-          opacity: 0.16      // 更轻、更虚
+          opacity: 0.22
         });
-
         const ring = new THREE.Mesh(geo, mat);
         ring.position.y = y;
         ring.rotation.x = Math.PI / 2;
-        ring.rotation.z = (Math.random() - 0.5) * 0.06;
-
+        ring.rotation.z = (Math.random() - 0.5) * 0.12;
         mainGroup.add(ring);
         garlands.push(ring);
       });
     }
 
+    // 顶部“钻石形”灯头：单个尖顶，更简洁
     function createStarTopper() {
-      const starGeo = new THREE.OctahedronGeometry(1.5, 0);
-      const starMat = new THREE.MeshStandardMaterial({
-        color: 0xffe6aa,
-        emissive: 0xffbb33,
-        emissiveIntensity: 1.2,
-        metalness: 1.0,
-        roughness: 0.08
-      });
-      const star = new THREE.Mesh(starGeo, starMat);
-      star.position.set(0, CONFIG.particles.treeHeight / 2 + 1.2, 0);
+      // 拉长的 Octahedron，当成钻石状
+      const coreGeo = new THREE.OctahedronGeometry(1.4, 1);
+      coreGeo.scale(0.9, 1.6, 0.9); // 竖向拉长一点
 
-      const haloGeo = new THREE.PlaneGeometry(8, 8);
+      const coreMat = new THREE.MeshPhysicalMaterial({
+        color: 0xfff3c0,
+        metalness: 1.0,
+        roughness: 0.1,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.04,
+        emissive: 0xffd890,
+        emissiveIntensity: 1.0,
+        reflectivity: 1.0
+      });
+
+      const star = new THREE.Mesh(coreGeo, coreMat);
+      star.position.set(0, CONFIG.particles.treeHeight / 2 + 1.4, 0);
+      star.rotation.y = Math.PI / 6;
+      star.rotation.z = 0.1;
+
+      // 中心小灯芯
+      const innerGeo = new THREE.SphereGeometry(0.4, 24, 24);
+      const innerMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff
+      });
+      const inner = new THREE.Mesh(innerGeo, innerMat);
+      inner.position.set(0, 0, 0.05);
+      star.add(inner);
+
+      // 柔和光晕
+      const haloGeo = new THREE.PlaneGeometry(7, 7);
       const haloMat = new THREE.MeshBasicMaterial({
         map: new THREE.TextureLoader().load(
           'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/sprites/glow.png'
@@ -917,8 +907,8 @@
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         transparent: true,
-        opacity: 0.45,
-        color: 0xffdd66
+        opacity: 0.32,
+        color: 0xffe6aa
       });
       const halo = new THREE.Mesh(haloGeo, haloMat);
       star.add(halo);
@@ -952,11 +942,9 @@
 
       if (navigator.mediaDevices?.getUserMedia) {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia(
-            {
-              video: { width: 1280, height: 720 }
-            }
-          );
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: 1280, height: 720 }
+          });
           video.srcObject = stream;
           video.addEventListener('loadeddata', () => {
             predictWebcam();
@@ -1018,7 +1006,7 @@
       requestAnimationFrame(predictWebcam);
     }
 
-    // === 新版手势逻辑：带记忆的双阈值，更容易收回树 ===
+    // === 手势逻辑：带记忆的双阈值，更容易收回树 ===
     function processGestures(lm) {
       STATE.hand.detected = true;
 
@@ -1087,28 +1075,32 @@
       );
     }
 
-    // BGM 开关逻辑
+    // BGM 开关逻辑（无 alert，按钮文字自动切换）
     function setupBGM() {
       const bgm = document.getElementById('bgm');
       const btn = document.getElementById('bgm-toggle');
       let on = false;
 
-      btn.addEventListener('click', async () => {
+      const updateLabel = () => {
+        btn.querySelector('span:nth-child(2)').textContent = on ? '音乐 关' : '音乐 开';
+      };
+
+      btn.addEventListener('click', () => {
         if (!on) {
-          try {
-            await bgm.play();
-            on = true;
-            btn.querySelector('span:nth-child(2)').textContent =
-              '音乐 关';
-          } catch (e) {
-            console.warn('BGM play failed', e);
-            alert('浏览器阻止自动播放，请再次点击或与页面多互动一下再试。');
-          }
+          bgm
+            .play()
+            .then(() => {
+              on = true;
+              updateLabel();
+            })
+            .catch(e => {
+              console.warn('BGM 播放失败（可能被浏览器阻止）：', e);
+              // 不再额外 alert，用户多点几次即可
+            });
         } else {
           bgm.pause();
           on = false;
-          btn.querySelector('span:nth-child(2)').textContent =
-            '音乐 开';
+          updateLabel();
         }
       });
     }

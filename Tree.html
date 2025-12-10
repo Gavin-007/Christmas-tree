@@ -195,7 +195,7 @@
       box-shadow: 0 0 10px rgba(212, 175, 55, 0.25);
     }
 
-    /* 摄像头预览整个隐藏，只保留手势识别功能 */
+    /* 摄像头预览隐藏，仅保留手势识别功能 */
     #webcam-wrapper {
       display: none;
     }
@@ -857,36 +857,41 @@
       mainGroup.add(photoMeshGroup);
     }
 
-    // 花环 / 装饰带：两圈、轻一点
+    // 花环 / 装饰带：两圈，更细更贴树身、半透明
     function createGarlands() {
       const h = CONFIG.particles.treeHeight;
       const halfH = h / 2;
-      const levels = [0.32, 0.58]; // 只要中下 + 中上两圈
+
+      // 想只要 1 个圈：改成 const levels = [0.45];
+      const levels = [0.38, 0.68];
 
       levels.forEach((t, idx) => {
         const y = t * h - halfH;
-        const radius =
-          CONFIG.particles.treeRadius * (1.05 - t) + 0.8;
+
+        // 更贴近树身，半径小一点
+        const radius = CONFIG.particles.treeRadius * (0.8 - t) + 0.3;
 
         const geo = new THREE.TorusGeometry(
           radius,
-          0.08,
+          0.05,          // 管子更细
           24,
-          200
+          220
         );
         const mat = new THREE.MeshStandardMaterial({
-          color: 0xffe6aa,
+          color: 0xfff0c8,
           metalness: 0.9,
           roughness: 0.25,
           emissive: 0x775522,
-          emissiveIntensity: 0.22,
+          emissiveIntensity: 0.18,
           transparent: true,
-          opacity: 0.22
+          opacity: 0.16      // 更轻、更虚
         });
+
         const ring = new THREE.Mesh(geo, mat);
         ring.position.y = y;
         ring.rotation.x = Math.PI / 2;
-        ring.rotation.z = (Math.random() - 0.5) * 0.12;
+        ring.rotation.z = (Math.random() - 0.5) * 0.06;
+
         mainGroup.add(ring);
         garlands.push(ring);
       });

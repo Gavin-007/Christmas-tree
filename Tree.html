@@ -832,121 +832,120 @@
       mainGroup.add(photoMeshGroup);
     }
 
-// 花环 / 装饰带：两圈更小、更贴树，倾斜角限制在约 ±20°
-function createGarlands() {
-  const h = CONFIG.particles.treeHeight;
-  const halfH = h / 2;
+    // 花环 / 装饰带：两圈更小、更贴树，倾斜角控制在 ±15°
+    function createGarlands() {
+      const h = CONFIG.particles.treeHeight;
+      const halfH = h / 2;
 
-  // 取在树身中下部 & 中上部两层
-  const levels = [0.40, 0.68];
+      // 放在树身中部偏上的两层
+      const levels = [0.42, 0.70]; // 0 底部，1 顶部
 
-  garlands = [];
+      garlands = [];
 
-  levels.forEach((t, idx) => {
-    const y = t * h - halfH;
+      levels.forEach((t, idx) => {
+        const y = t * h - halfH;
 
-    // 按树锥形收缩，半径略小于树身
-    const treeRadiusAtT = Math.max(
-      0.8,
-      CONFIG.particles.treeRadius * (1.0 - t)
-    );
-    const radius = treeRadiusAtT * 0.78;   // 再收一点，让圈包在树里面
+        // 当前高度处树的大概半径
+        const treeR = CONFIG.particles.treeRadius * (1.0 - t);
+        // 缩到 60% 左右，让圈在树里面，而不是撑到最外面
+        const radius = treeR * 0.6;
 
-    const geo = new THREE.TorusGeometry(
-      radius,
-      0.045,   // 更细
-      24,
-      260
-    );
+        const geo = new THREE.TorusGeometry(
+          radius,
+          0.04,   // 管子更细
+          24,
+          260
+        );
 
-    const mat = new THREE.MeshStandardMaterial({
-      color: 0xfff4cf,
-      metalness: 0.95,
-      roughness: 0.24,
-      emissive: 0x704822,
-      emissiveIntensity: 0.18,
-      transparent: true,
-      opacity: 0.22
-    });
+        const mat = new THREE.MeshStandardMaterial({
+          color: 0xfff4cf,
+          metalness: 0.95,
+          roughness: 0.24,
+          emissive: 0x704822,
+          emissiveIntensity: 0.18,
+          transparent: true,
+          opacity: 0.18
+        });
 
-    const ring = new THREE.Mesh(geo, mat);
-    ring.position.y = y;
+        const ring = new THREE.Mesh(geo, mat);
+        ring.position.y = y;
 
-    // 让圈基本水平，只给一点点倾斜，控制在 ±20° 以内
-    const tiltDeg = (idx === 0 ? 10 : -10) + (Math.random() - 0.5) * 6; // 大约在 [-13°, 13°] 左右
-    const tiltRad = THREE.MathUtils.degToRad(tiltDeg);
+        // 主方向水平，只给轻微倾斜（±15° 内）
+        const baseDeg = idx === 0 ? 8 : -8;
+        const randDeg = (Math.random() - 0.5) * 6; // [-3,3]
+        const tiltRad = THREE.MathUtils.degToRad(baseDeg + randDeg);
 
-    ring.rotation.x = Math.PI / 2;                // 主方向是水平
-    ring.rotation.z = tiltRad;                    // 只在 z 上轻微倾斜
+        ring.rotation.x = Math.PI / 2;
+        ring.rotation.z = tiltRad;
 
-    mainGroup.add(ring);
-    garlands.push(ring);
-  });
-}
-// 顶部五角星灯头：轮廓更尖，发光更克制，不会糊成一团
-function createStarTopper() {
-  // 2D 五角星轮廓（更尖一点）
-  const starShape = new THREE.Shape();
-  const outerR = 1.2;   // 外圈半径
-  const innerR = 0.5;   // 内圈半径
-  const points = 5;
+        mainGroup.add(ring);
+        garlands.push(ring);
+      });
+    }
 
-  for (let i = 0; i < points * 2; i++) {
-    const r = i % 2 === 0 ? outerR : innerR;
-    const angle = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
-    const x = Math.cos(angle) * r;
-    const y = Math.sin(angle) * r;
-    if (i === 0) starShape.moveTo(x, y);
-    else starShape.lineTo(x, y);
-  }
-  starShape.closePath();
+    // 顶部五角星灯头：轮廓清晰，一个尖朝上
+    function createStarTopper() {
+      // 2D 五角星轮廓
+      const starShape = new THREE.Shape();
+      const outerR = 1.4;   // 外圈半径
+      const innerR = 0.55;  // 内圈半径
+      const points = 5;
 
-  const extrudeSettings = {
-    depth: 0.28,           // 厚度薄一点
-    bevelEnabled: true,
-    bevelThickness: 0.10,
-    bevelSize: 0.12,
-    bevelSegments: 3
-  };
+      for (let i = 0; i < points * 2; i++) {
+        const r = (i % 2 === 0) ? outerR : innerR;
+        const angle = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+        const x = Math.cos(angle) * r;
+        const y = Math.sin(angle) * r;
+        if (i === 0) starShape.moveTo(x, y);
+        else starShape.lineTo(x, y);
+      }
+      starShape.closePath();
 
-  const starGeo = new THREE.ExtrudeGeometry(starShape, extrudeSettings);
-  starGeo.center();
+      const extrudeSettings = {
+        depth: 0.32,
+        bevelEnabled: true,
+        bevelThickness: 0.10,
+        bevelSize: 0.12,
+        bevelSegments: 3
+      };
 
-  const starMat = new THREE.MeshPhysicalMaterial({
-    color: 0xfff6d0,
-    metalness: 1.0,
-    roughness: 0.15,
-    clearcoat: 1.0,
-    clearcoatRoughness: 0.06,
-    emissive: 0xffd58a,
-    emissiveIntensity: 0.65,   // 降低发光，细节不容易糊
-    reflectivity: 1.0
-  });
+      const starGeo = new THREE.ExtrudeGeometry(starShape, extrudeSettings);
+      starGeo.center();
 
-  const star = new THREE.Mesh(starGeo, starMat);
-  star.position.set(0, CONFIG.particles.treeHeight / 2 + 1.6, 0);
-  star.rotation.set(0, 0, 0);      // 一个尖正对上方
-  star.scale.set(0.95, 0.95, 0.95);
-  star.castShadow = true;
+      const starMat = new THREE.MeshPhysicalMaterial({
+        color: 0xfff3c0,
+        metalness: 1.0,
+        roughness: 0.15,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.06,
+        emissive: 0xffd890,
+        emissiveIntensity: 0.6,
+        reflectivity: 1.0
+      });
 
-  // 柔和一点的光晕（更小、更透明）
-  const haloGeo = new THREE.PlaneGeometry(5, 5);
-  const haloMat = new THREE.MeshBasicMaterial({
-    map: new THREE.TextureLoader().load(
-      'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/sprites/glow.png'
-    ),
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    transparent: true,
-    opacity: 0.22,      // 比之前淡很多
-    color: 0xffe9aa
-  });
-  const halo = new THREE.Mesh(haloGeo, haloMat);
-  star.add(halo);
+      const star = new THREE.Mesh(starGeo, starMat);
+      star.position.set(0, CONFIG.particles.treeHeight / 2 + 1.6, 0);
+      star.rotation.set(0, 0, 0);   // 顶部一个尖正对上方
+      star.castShadow = true;
 
-  starGroup.add(star);
-  STATE.starMesh = star;
-}
+      // 柔和光晕（更小、更透明）
+      const haloGeo = new THREE.PlaneGeometry(5, 5);
+      const haloMat = new THREE.MeshBasicMaterial({
+        map: new THREE.TextureLoader().load(
+          'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/sprites/glow.png'
+        ),
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        transparent: true,
+        opacity: 0.22,
+        color: 0xffe6aa
+      });
+      const halo = new THREE.Mesh(haloGeo, haloMat);
+      star.add(halo);
+
+      starGroup.add(star);
+      STATE.starMesh = star;
+    }
 
     // ===== 手势 & 摄像头 =====
     async function initMediaPipe() {
@@ -1106,14 +1105,15 @@ function createStarTopper() {
       );
     }
 
-    // BGM 开关逻辑（无多余 alert，按钮文字自动切换）
+    // BGM 开关逻辑（按钮文字自动切换）
     function setupBGM() {
       const bgm = document.getElementById('bgm');
       const btn = document.getElementById('bgm-toggle');
       let on = false;
 
       const updateLabel = () => {
-        btn.querySelector('span:nth-child(2)').textContent = on ? '音乐 关' : '音乐 开';
+        btn.querySelector('span:nth-child(2)').textContent =
+          on ? '音乐 关' : '音乐 开';
       };
 
       btn.addEventListener('click', () => {

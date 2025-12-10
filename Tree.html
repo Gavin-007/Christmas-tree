@@ -335,10 +335,10 @@
     };
 
     let scene, camera, renderer, composer;
-    let mainGroup, bgGroup;
+    let mainGroup, starGroup, bgGroup;
     let clock = new THREE.Clock();
     let particleSystem = [];
-    let garlands = [];
+    let garlands = []; // 这里会存 {mesh, baseX, baseZ, spinSpeed, phase}
     let photoMeshGroup = new THREE.Group();
 
     let handLandmarker, video;
@@ -398,7 +398,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 0.78;
+      renderer.toneMappingExposure = 0.78; // 降一点曝光
       container.appendChild(renderer.domElement);
 
       bgGroup = new THREE.Group();
@@ -408,6 +408,9 @@
       mainGroup.rotation.x = 0.1;
       mainGroup.position.y = -2.5;
       scene.add(mainGroup);
+
+      starGroup = new THREE.Group();
+      mainGroup.add(starGroup);
     }
 
     // ===== 2D 背景（柔和散景 + 飘雪）=====
@@ -459,7 +462,7 @@
       const w = overlayW, h = overlayH;
       overlayCtx.clearRect(0, 0, w, h);
 
-      // 背景渐变
+      // 背景渐变：更薄，避免“雾”
       const grad = overlayCtx.createLinearGradient(0, 0, w, h);
       grad.addColorStop(0, 'rgba(50,80,120,0.20)');
       grad.addColorStop(0.4, 'rgba(5,8,12,0.14)');
@@ -467,7 +470,7 @@
       overlayCtx.fillStyle = grad;
       overlayCtx.fillRect(0, 0, w, h);
 
-      // 散景
+      // 柔和散景
       overlayCtx.save();
       overlayCtx.globalCompositeOperation = 'lighter';
       bokehLights.forEach(b => {
@@ -542,11 +545,12 @@
     function setupPostProcessing() {
       const renderScene = new RenderPass(scene, camera);
 
+      // Bloom 再柔一点，减少过曝
       const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.85,
-        0.35,
-        1.0
+        0.85, // strength
+        0.35, // radius
+        1.0   // threshold
       );
 
       composer = new EffectComposer(renderer);
@@ -827,24 +831,19 @@
       mainGroup.add(photoMeshGroup);
     }
 
-    // 花环 / 装饰带：两个都比之前小一圈，倾斜角控制在很小范围
+    // 花环 / 装饰带：两圈（大小按你满意的那版来），带 30° 以内倾斜
     function createGarlands() {
       const h = CONFIG.particles.treeHeight;
       const halfH = h / 2;
+      const levels = [0.35, 0.62]; // 中下 + 中上
 
-      // 底部大圈 & 中上小圈
-      const levelConfigs = [
-        { t: 0.38, radius: 4.6 }, // 底部圈
-        { t: 0.64, radius: 2.3 }  // 上面小圈
-      ];
-
-      levelConfigs.forEach((conf, idx) => {
-        const y = conf.t * h - halfH;
-        const radius = conf.radius;
+      levels.forEach((t, idx) => {
+        const y = t * h - halfH;
+        const radius = CONFIG.particles.treeRadius * (1.0 - t) * 0.95 + 0.3;
 
         const geo = new THREE.TorusGeometry(
           radius,
-          0.05,
+          0.055,
           24,
           220
         );
@@ -859,23 +858,33 @@
         });
         const ring = new THREE.Mesh(geo, mat);
         ring.position.y = y;
-        ring.rotation.x = Math.PI / 2;                 // 完全水平
-        ring.rotation.z = (Math.random() - 0.5) * 0.1; // 约 ±5.7° 以内
+
+        // 初始略微倾斜一点
+        ring.rotation.x = Math.PI / 2 + (Math.random() - 0.5) * 0.1;
+        ring.rotation.z = (Math.random() - 0.5) * 0.1;
+        ring.rotation.y = Math.random() * Math.PI * 2;
+
         mainGroup.add(ring);
-        garlands.push(ring);
+        garlands.push({
+          mesh: ring,
+          baseX: ring.rotation.x,
+          baseZ: ring.rotation.z,
+          spinSpeed: idx === 0 ? 0.08 : -0.06,
+          phase: Math.random() * Math.PI * 2
+        });
       });
     }
 
-    // 顶部五角星灯头：更饱满 + 永远一个尖朝上
+    // 顶部五角星灯头：始终一个尖朝上
     function createStarTopper() {
       const starShape = new THREE.Shape();
-      const outerR = 1.8;   // 外圈稍微大一点
-      const innerR = 1.0;   // 内圈不要太瘦，星星更饱满
+      const outerR = 1.7;
+      const innerR = 0.7;
       const points = 5;
 
       for (let i = 0; i < points * 2; i++) {
         const r = i % 2 === 0 ? outerR : innerR;
-        const angle = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+        const angle = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2; // 顶部朝上
         const x = Math.cos(angle) * r;
         const y = Math.sin(angle) * r;
         if (i === 0) starShape.moveTo(x, y);
@@ -884,10 +893,10 @@
       starShape.closePath();
 
       const extrudeSettings = {
-        depth: 0.6,
+        depth: 0.45,
         bevelEnabled: true,
-        bevelThickness: 0.2,
-        bevelSize: 0.22,
+        bevelThickness: 0.15,
+        bevelSize: 0.18,
         bevelSegments: 4
       };
 
@@ -906,19 +915,16 @@
       });
 
       const star = new THREE.Mesh(starGeo, starMat);
-      // 让树尖刚好顶在星星底部两个尖尖的中间
-      star.position.set(0, CONFIG.particles.treeHeight / 2 + 0.35, 0);
-      star.rotation.set(0, 0, 0);
-      star.userData.baseScale = 1.0;
-      star.castShadow = true;
+      star.position.set(0, CONFIG.particles.treeHeight / 2 + 1.5, 0);
+      star.rotation.set(0, 0, 0); // 不绕 Z 轴倾斜
 
-      const innerGeo = new THREE.SphereGeometry(0.38, 24, 24);
+      const innerGeo = new THREE.SphereGeometry(0.35, 24, 24);
       const innerMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
       const inner = new THREE.Mesh(innerGeo, innerMat);
-      inner.position.set(0, 0, 0.2);
+      inner.position.set(0, 0, 0.18);
       star.add(inner);
 
-      const haloGeo = new THREE.PlaneGeometry(7.5, 7.5);
+      const haloGeo = new THREE.PlaneGeometry(7, 7);
       const haloMat = new THREE.MeshBasicMaterial({
         map: new THREE.TextureLoader().load(
           'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/sprites/glow.png'
@@ -926,13 +932,13 @@
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         transparent: true,
-        opacity: 0.36,
+        opacity: 0.34,
         color: 0xffe6aa
       });
       const halo = new THREE.Mesh(haloGeo, haloMat);
       star.add(halo);
 
-      mainGroup.add(star);
+      starGroup.add(star);
       STATE.starMesh = star;
     }
 
@@ -1025,6 +1031,7 @@
       requestAnimationFrame(predictWebcam);
     }
 
+    // 手势逻辑：带记忆的双阈值
     function processGestures(lm) {
       STATE.hand.detected = true;
 
@@ -1067,6 +1074,7 @@
         }
       });
 
+      // PC 鼠标
       document.addEventListener('mousemove', e => {
         if (STATE.hand.detected) return;
         const x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -1075,6 +1083,7 @@
         STATE.mouse.y = y;
       });
 
+      // 移动端触摸
       document.addEventListener(
         'touchmove',
         e => {
@@ -1089,6 +1098,7 @@
       );
     }
 
+    // BGM 开关逻辑
     function setupBGM() {
       const bgm = document.getElementById('bgm');
       const btn = document.getElementById('bgm-toggle');
@@ -1155,23 +1165,27 @@
       bgGroup.rotation.y -= 0.05 * dt;
       bgGroup.rotation.z += 0.02 * dt;
 
-      // ⭐ 五角星：抵消树的 x / z 倾斜，保证一个尖始终朝上
+      // 顶部五角星：只绕 Y 轴慢慢转，保持一个尖朝上
       if (STATE.starMesh) {
-        // 抵消主树在 x / z 上的倾斜，让星星在屏幕里竖直
-        STATE.starMesh.rotation.x = -mainGroup.rotation.x;
-        STATE.starMesh.rotation.z = -mainGroup.rotation.z;
-        STATE.starMesh.rotation.y = 0; // 不再绕自身旋转
-
-        // 轻微呼吸缩放
-        const baseScale = STATE.starMesh.userData.baseScale || 1.0;
-        const s = baseScale * (1 + 0.05 * Math.sin(STATE.time * 1.3));
-        STATE.starMesh.scale.set(s, s, s);
+        STATE.starMesh.rotation.y += 0.4 * dt;
+        STATE.starMesh.rotation.x = 0;
+        STATE.starMesh.rotation.z = 0;
+        const scale = 1.0 + Math.sin(STATE.time * 1.5) * 0.08;
+        STATE.starMesh.scale.set(scale, scale, scale);
       }
 
-      // 花环轻微转动
+      // 花环：围着树转，倾斜角限制在 30°（π/6）以内
+      const maxTilt = Math.PI / 6;
       garlands.forEach((g, idx) => {
-        g.rotation.y += (idx % 2 === 0 ? 0.08 : -0.05) * dt;
-        g.material.emissiveIntensity =
+        const mesh = g.mesh;
+        mesh.rotation.y += g.spinSpeed * dt;
+
+        const tiltX = Math.sin(STATE.time * 0.5 + g.phase) * maxTilt * 0.6;
+        const tiltZ = Math.sin(STATE.time * 0.7 + g.phase + 1.5) * maxTilt * 0.6;
+        mesh.rotation.x = g.baseX + tiltX;
+        mesh.rotation.z = g.baseZ + tiltZ;
+
+        mesh.material.emissiveIntensity =
           0.18 + Math.sin(STATE.time * 1.2 + idx) * 0.12;
       });
 
@@ -1179,7 +1193,9 @@
         p.update(dt, STATE.time, STATE.mode)
       );
 
+      // 2D 背景层
       renderOverlay(dt);
+
       composer.render();
     }
 

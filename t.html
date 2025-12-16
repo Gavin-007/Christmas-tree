@@ -642,7 +642,7 @@
       const container = document.getElementById('canvas-container');
       scene = new THREE.Scene();
       scene.background = new THREE.Color(CONFIG.colors.bg);
-      scene.fog = new THREE.FogExp2(CONFIG.colors.bg, 0.0005); // 再弱一点雾
+      scene.fog = new THREE.FogExp2(CONFIG.colors.bg, 0.0002); // 再弱一点雾
 
       camera = new THREE.PerspectiveCamera(
         45,

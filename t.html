@@ -6,6 +6,10 @@
   <title>Grand Luxury Tree - Ultimate Edition</title>
 
   <style>
+    html, body {
+      height: 100%;
+    }
+
     body {
       margin: 0;
       overflow: hidden;
@@ -32,6 +36,14 @@
       z-index: 1;
     }
 
+    /* 兼容新浏览器的动态高度，减少移动端错位 */
+    @supports (height: 100svh) {
+      #canvas-container,
+      #bg-overlay {
+        height: 100svh;
+      }
+    }
+
     /* UI Layer */
     #ui-layer {
       position: absolute;
@@ -46,7 +58,7 @@
       align-items: center;
       padding-top: 3vh;
       box-sizing: border-box;
-      background: transparent; /* 去雾 */
+      background: transparent; /* 不再额外加雾幕 */
     }
 
     .ui-hidden {
@@ -113,14 +125,13 @@
       opacity: 0.95;
     }
 
-    .upload-wrapper { display: none; }
     #file-input { display: none; }
 
     /* 左下角：只放 BGM + 文案 */
     #bottom-left-panel {
       position: absolute;
-      left: 40px;
-      bottom: 30px;
+      left: calc(16px + env(safe-area-inset-left));
+      bottom: calc(20px + env(safe-area-inset-bottom));
       z-index: 20;
       pointer-events: none;
       display: flex;
@@ -184,11 +195,11 @@
       box-shadow: 0 0 10px rgba(212, 175, 55, 0.25);
     }
 
-    /* 右下角颜色盘：用 fixed，保证 PC / 移动端都能看到 */
+    /* 右下角颜色盘 */
     #theme-panel {
       position: fixed;
-      right: 40px;
-      bottom: 30px;
+      right: calc(16px + env(safe-area-inset-right));
+      bottom: calc(20px + env(safe-area-inset-bottom));
       z-index: 30;
       pointer-events: auto;
       padding: 6px 10px;
@@ -251,8 +262,6 @@
         letter-spacing: 5px;
       }
       #bottom-left-panel {
-        left: 12px;
-        bottom: 12px;
         gap: 6px;
       }
       #bgm-toggle {
@@ -268,8 +277,6 @@
       }
 
       #theme-panel {
-        right: 12px;
-        bottom: 14px;
         padding: 4px 8px;
       }
       .theme-btn {
@@ -306,13 +313,6 @@
   <div id="ui-layer">
     <h1>MERRY CHRISTMAS</h1>
 
-    <div class="upload-wrapper">
-      <label class="upload-btn">
-        Add Memories
-        <input type="file" id="file-input" multiple accept="image/*" />
-      </label>
-    </div>
-
     <div id="bottom-left-panel">
       <button id="bgm-toggle">
         <span>♪</span><span>音乐 开</span>
@@ -331,7 +331,7 @@
     </div>
   </div>
 
-  <!-- 右下角颜色盘（fixed） -->
+  <!-- 右下角颜色盘 -->
   <div id="theme-panel">
     <div class="theme-dots">
       <button class="theme-btn theme-gold theme-active"   data-theme="0"></button>
@@ -361,15 +361,15 @@
       DrawingUtils
     } from '@mediapipe/tasks-vision';
 
-    /* ========= 主题配色，影响整棵树 + 顶部雪花 ========== */
+    /* ========= 主题配色 ========== */
     const THEMES = [
       {
         label: 'GOLD',
         bg: 0x050309,
         overlay: [
-          'rgba(40,32,18,0.25)',
-          'rgba(6,6,10,0.20)',
-          'rgba(90,55,24,0.18)'
+          'rgba(40,32,18,0.22)',
+          'rgba(6,6,10,0.18)',
+          'rgba(90,55,24,0.16)'
         ],
         bulbA: 0xf7d58a,
         bulbB: 0xfff3cf,
@@ -393,9 +393,9 @@
         label: 'ICE',
         bg: 0x050914,
         overlay: [
-          'rgba(46,86,140,0.2)',
-          'rgba(7,13,28,0.18)',
-          'rgba(18,56,120,0.2)'
+          'rgba(46,86,140,0.18)',
+          'rgba(7,13,28,0.16)',
+          'rgba(18,56,120,0.18)'
         ],
         bulbA: 0xd7e5ff,
         bulbB: 0xf7fbff,
@@ -415,23 +415,23 @@
         haloA: 0xb9d5ff,
         bgStarA: 0xa7baf5
       },
-      /* 紫色主题：加一点金色 / 香槟对比 */
+      /* 紫色：你要的那版，对比加一点香槟金 */
       {
         label: 'PURPLE',
         bg: 0x07020f,
         overlay: [
-          'rgba(102,68,152,0.22)',
-          'rgba(18,8,36,0.18)',
-          'rgba(210,164,255,0.18)'
+          'rgba(102,68,152,0.20)',
+          'rgba(18,8,36,0.16)',
+          'rgba(210,164,255,0.16)'
         ],
         bulbA: 0xe7dcff,
         bulbB: 0xfaf7ff,
         bulbEmissive: 0x5b3a8e,
-        accentA: 0xf8efe0,     // 香槟色点缀
+        accentA: 0xf8efe0,
         accentB: 0xe1c89a,
         accentEmissive: 0x3b2614,
         green: 0x22142f,
-        red: 0xf2c99b,          // 暖金色球，拉开对比
+        red: 0xf2c99b,
         dust: 0xfdf7ff,
         garlandA: 0xe9d9ff,
         garlandB: 0xd4b6f4,
@@ -442,23 +442,24 @@
         haloA: 0xf2d9ff,
         bgStarA: 0xdcc5ff
       },
+      /* 绿色：更偏祖母绿 + 香槟点缀 */
       {
         label: 'EMERALD',
-        bg: 0x040908,
+        bg: 0x030806,
         overlay: [
-          'rgba(42,96,72,0.20)',
-          'rgba(5,18,14,0.18)',
-          'rgba(24,84,52,0.20)'
+          'rgba(42,96,72,0.18)',
+          'rgba(5,18,14,0.15)',
+          'rgba(24,84,52,0.18)'
         ],
-        bulbA: 0xc4f0d0,
-        bulbB: 0xf0fff7,
+        bulbA: 0xcff9db,
+        bulbB: 0xf4fff9,
         bulbEmissive: 0x29573f,
-        accentA: 0xe3ffe9,
-        accentB: 0xc0f2d3,
-        accentEmissive: 0x1f4130,
-        green: 0x144331,
+        accentA: 0xf8edd5,
+        accentB: 0xd9c29a,
+        accentEmissive: 0x47311b,
+        green: 0x184635,
         red: 0xc0a47c,
-        dust: 0xf4fff9,
+        dust: 0xf7fff9,
         garlandA: 0xd3ffd7,
         garlandB: 0xa8f3c2,
         garlandEmissive: 0x3b7a52,
@@ -468,30 +469,31 @@
         haloA: 0xc9ffb1,
         bgStarA: 0xa2f3cf
       },
+      /* 粉色：多一点暖白 + 香槟，没那么荧光 */
       {
         label: 'ROSE',
         bg: 0x12040a,
         overlay: [
-          'rgba(128,54,86,0.20)',
-          'rgba(20,10,18,0.18)',
-          'rgba(170,78,112,0.20)'
+          'rgba(128,54,86,0.18)',
+          'rgba(20,10,18,0.15)',
+          'rgba(170,78,112,0.18)'
         ],
-        bulbA: 0xf7c6d0,
-        bulbB: 0xfff1f5,
-        bulbEmissive: 0x7c4252,
-        accentA: 0xffe3eb,
-        accentB: 0xf3c3d0,
-        accentEmissive: 0x5b2b3a,
+        bulbA: 0xfad0da,
+        bulbB: 0xfff4f7,
+        bulbEmissive: 0x874758,
+        accentA: 0xffe6d8,
+        accentB: 0xf5c9aa,
+        accentEmissive: 0x5b3526,
         green: 0x3a1a25,
         red: 0xe58aa5,
         dust: 0xfff5f7,
         garlandA: 0xffd1de,
         garlandB: 0xf4a9c2,
         garlandEmissive: 0x8d455a,
-        starA: 0xffedf2,
-        starB: 0xf5cede,
+        starA: 0xfff0e6,
+        starB: 0xf8d1e0,
         starEmissive: 0xf0a5bf,
-        haloA: 0xf5cede,
+        haloA: 0xf7dae5,
         bgStarA: 0xf2b4cf
       }
     ];
@@ -640,7 +642,7 @@
       const container = document.getElementById('canvas-container');
       scene = new THREE.Scene();
       scene.background = new THREE.Color(CONFIG.colors.bg);
-      scene.fog = new THREE.FogExp2(CONFIG.colors.bg, 0.003);
+      scene.fog = new THREE.FogExp2(CONFIG.colors.bg, 0.0015); // 再弱一点雾
 
       camera = new THREE.PerspectiveCamera(
         45,
@@ -659,7 +661,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 0.48; // 再压一点曝光
+      renderer.toneMappingExposure = 0.44; // 再稍微压一点曝光
       container.appendChild(renderer.domElement);
 
       bgGroup = new THREE.Group();
@@ -710,7 +712,7 @@
           x: Math.random() * overlayW,
           y: Math.random() * overlayH,
           r: 120 + Math.random() * 120,
-          baseAlpha: 0.01 + Math.random() * 0.015,
+          baseAlpha: 0.006 + Math.random() * 0.006, // 更轻的散景
           phase: Math.random() * Math.PI * 2,
           driftX: -4 + Math.random() * 8,
           driftY: -3 + Math.random() * 6
@@ -732,7 +734,7 @@
         w / 2, h * 0.45, Math.max(w, h) * 0.9
       );
       vignette.addColorStop(0, 'rgba(0,0,0,0)');
-      vignette.addColorStop(1, 'rgba(0,0,0,0.22)');
+      vignette.addColorStop(1, 'rgba(0,0,0,0.12)');
       overlayCtx.fillStyle = vignette;
       overlayCtx.fillRect(0, 0, w, h);
       overlayCtx.restore();
@@ -748,7 +750,7 @@
         if (b.y < -b.r) b.y = h + b.r;
         if (b.y > h + b.r) b.y = -b.r;
 
-        const alpha = b.baseAlpha + Math.sin(STATE.time * 0.4 + b.phase) * 0.01;
+        const alpha = b.baseAlpha + Math.sin(STATE.time * 0.4 + b.phase) * 0.004;
         const radial = overlayCtx.createRadialGradient(
           b.x, b.y, 0, b.x, b.y, b.r
         );
@@ -782,7 +784,7 @@
           const scale = s.size / img.width;
           overlayCtx.scale(scale, scale);
           overlayCtx.globalAlpha =
-            0.3 + 0.3 * Math.sin(STATE.time * 1.5 + s.phase);
+            0.25 + 0.25 * Math.sin(STATE.time * 1.5 + s.phase);
           overlayCtx.drawImage(img, -img.width / 2, -img.height / 2);
           overlayCtx.restore();
         } else {
@@ -857,11 +859,11 @@
       const ambient = new THREE.AmbientLight(0xffffff, 0.22);
       scene.add(ambient);
 
-      const bottomLight = new THREE.PointLight(CONFIG.colors.gold, 2.6, 40); // 降低亮度
+      const bottomLight = new THREE.PointLight(CONFIG.colors.gold, 2.2, 40);
       bottomLight.position.set(0, -10, 10);
       mainGroup.add(bottomLight);
 
-      const spotGold = new THREE.SpotLight(0xfff0dd, 520); // 降低亮度
+      const spotGold = new THREE.SpotLight(0xfff0dd, 450);
       spotGold.position.set(40, 60, 40);
       spotGold.angle = 0.4;
       spotGold.penumbra = 0.5;
@@ -869,7 +871,7 @@
       spotGold.distance = 200;
       scene.add(spotGold);
 
-      const spotBlue = new THREE.SpotLight(0x4455ff, 260); // 降低亮度
+      const spotBlue = new THREE.SpotLight(0x4455ff, 220);
       spotBlue.position.set(-40, 10, -30);
       spotBlue.lookAt(0, 0, 0);
       scene.add(spotBlue);
@@ -879,7 +881,7 @@
       const renderScene = new RenderPass(scene, camera);
       const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.75,
+        0.7,   // 稍微减一点 Bloom 强度
         0.35,
         1.0
       );
@@ -936,7 +938,7 @@
         color: THEMES[currentThemeIndex].bgStarA,
         size: 0.9,
         transparent: true,
-        opacity: 0.65,
+        opacity: 0.6,
         sizeAttenuation: true
       });
 
@@ -1033,7 +1035,7 @@
         if (this.hasEmissive && mode === 'TREE' && !this.isDust) {
           const blink = Math.sin(time * 2.3 + this.offset);
           this.mesh.material.emissiveIntensity =
-            0.18 + Math.max(0, blink) * 0.5;
+            0.16 + Math.max(0, blink) * 0.4; // 闪烁稍弱一点
         }
 
         let s = this.baseScale;
@@ -1041,7 +1043,7 @@
           s = this.baseScale *
               (0.5 + 0.5 * Math.sin(time * 3 + this.offset));
         } else if (mode === 'SCATTER') {
-          s = this.baseScale * 1.15;
+          s = this.baseScale * 1.1;
         }
 
         this.mesh.scale.lerp(new THREE.Vector3(s, s, s), 5 * dt);
@@ -1070,19 +1072,19 @@
       const goldMat = new THREE.MeshStandardMaterial({
         color: CONFIG.colors.gold,
         metalness: 1.0,
-        roughness: 0.18,
-        envMapIntensity: 2.2,
+        roughness: 0.2,
+        envMapIntensity: 1.7,
         emissive: 0x553300,
-        emissiveIntensity: 0.18
+        emissiveIntensity: 0.14
       });
 
       const champagneMat = new THREE.MeshStandardMaterial({
         color: CONFIG.colors.champagne,
         metalness: 0.9,
-        roughness: 0.22,
-        envMapIntensity: 2.0,
+        roughness: 0.24,
+        envMapIntensity: 1.6,
         emissive: 0x332211,
-        emissiveIntensity: 0.16
+        emissiveIntensity: 0.12
       });
 
       const greenMat = new THREE.MeshStandardMaterial({
@@ -1100,7 +1102,7 @@
         clearcoat: 0.9,
         clearcoatRoughness: 0.15,
         emissive: 0x330000,
-        emissiveIntensity: 0.25
+        emissiveIntensity: 0.22
       });
 
       const candyMat = new THREE.MeshStandardMaterial({
@@ -1112,7 +1114,7 @@
 
       const dustGeo = new THREE.OctahedronGeometry(0.1, 0);
       const dustMat = new THREE.MeshBasicMaterial({
-        color: 0xfffff2,
+        color: 0xfffbe0,
         blending: THREE.AdditiveBlending
       });
 
@@ -1251,7 +1253,7 @@
         clearcoat: 1.0,
         clearcoatRoughness: 0.05,
         emissive: 0xffd890,
-        emissiveIntensity: 0.9,
+        emissiveIntensity: 0.8,
         reflectivity: 1.0
       });
 
@@ -1264,7 +1266,7 @@
 
       const textureLoader = new THREE.TextureLoader();
       const glowTex = textureLoader.load(
-        'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/sprites/glow.png'
+        'https://threejs.org/examples/textures/sprites/glow.png'
       );
       const haloMat = new THREE.SpriteMaterial({
         map: glowTex,
@@ -1272,7 +1274,7 @@
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         transparent: true,
-        opacity: 0.32
+        opacity: 0.26
       });
       const halo = new THREE.Sprite(haloMat);
       halo.scale.set(7, 7, 7);
@@ -1513,7 +1515,7 @@
       bgGroup.rotation.z += 0.02 * dt;
 
       if (STATE.starMesh) {
-        const s = 0.96 + Math.sin(STATE.time * 1.8) * 0.06;
+        const s = 0.96 + Math.sin(STATE.time * 1.8) * 0.05;
         STATE.starMesh.scale.set(s, s, s);
       }
 
@@ -1522,7 +1524,7 @@
         const ring = holder.children[0];
         if (ring && ring.material) {
           ring.material.emissiveIntensity =
-            0.14 + Math.sin(STATE.time * 1.2 + idx) * 0.10;
+            0.14 + Math.sin(STATE.time * 1.2 + idx) * 0.08;
         }
       });
 

@@ -58,7 +58,7 @@
       align-items: center;
       padding-top: 3vh;
       box-sizing: border-box;
-      background: transparent; /* 不再额外加雾幕 */
+      background: transparent;
     }
 
     .ui-hidden {
@@ -233,22 +233,11 @@
       border-color: #fff;
     }
 
-    /* 渐变色调盘 */
-    .theme-gold {
-      background-image: linear-gradient(135deg, #f6d48a, #f1b65c, #fef2cf);
-    }
-    .theme-ice {
-      background-image: linear-gradient(135deg, #cfe2ff, #8aa8ff, #f7fbff);
-    }
-    .theme-purple {
-      background-image: linear-gradient(135deg, #f1dfff, #b78ef3, #f6f1ff);
-    }
-    .theme-emerald {
-      background-image: linear-gradient(135deg, #bff4cf, #3b8f63, #f3fff7);
-    }
-    .theme-rose {
-      background-image: linear-gradient(135deg, #ffd4e1, #f08ab1, #fff0f5);
-    }
+    .theme-gold    { background-image: linear-gradient(135deg, #f6d48a, #f1b65c, #fef2cf); }
+    .theme-ice     { background-image: linear-gradient(135deg, #cfe2ff, #8aa8ff, #f7fbff); }
+    .theme-purple  { background-image: linear-gradient(135deg, #f1dfff, #b78ef3, #f6f1ff); }
+    .theme-emerald { background-image: linear-gradient(135deg, #bff4cf, #3b8f63, #f3fff7); }
+    .theme-rose    { background-image: linear-gradient(135deg, #ffd4e1, #f08ab1, #fff0f5); }
 
     #webcam-wrapper,
     #webcam,
@@ -275,7 +264,6 @@
         margin-right: 8px;
         font-size: 14px;
       }
-
       #theme-panel {
         padding: 4px 8px;
       }
@@ -361,7 +349,6 @@
       DrawingUtils
     } from '@mediapipe/tasks-vision';
 
-    /* 简单判断是否移动端，用来区分清晰度/雾感等 */
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     /* ========= 主题配色 ========== */
@@ -643,7 +630,7 @@
       scene = new THREE.Scene();
       scene.background = new THREE.Color(CONFIG.colors.bg);
 
-      // 手机端雾再弱一点，细节更清晰
+      // 手机端雾更轻一点，细节更清晰
       scene.fog = new THREE.FogExp2(
         CONFIG.colors.bg,
         isMobile ? 0.00015 : 0.0002
@@ -665,11 +652,9 @@
       });
       renderer.setSize(window.innerWidth, window.innerHeight);
 
-      // 手机允许更高一点 DPR，上限 2.5；PC 保持 2
       const dpr = window.devicePixelRatio || 1;
-      renderer.setPixelRatio(
-        isMobile ? Math.min(dpr, 2.5) : Math.min(dpr, 2)
-      );
+      const maxDpr = isMobile ? 3 : 2; // 手机放宽到 3，更锐一点
+      renderer.setPixelRatio(Math.min(dpr, maxDpr));
 
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = isMobile ? 0.42 : 0.44;
@@ -738,7 +723,6 @@
       const w = overlayW, h = overlayH;
       overlayCtx.clearRect(0, 0, w, h);
 
-      // 轻微暗角
       overlayCtx.save();
       const vignette = overlayCtx.createRadialGradient(
         w / 2, h * 0.45, 0,
@@ -750,7 +734,6 @@
       overlayCtx.fillRect(0, 0, w, h);
       overlayCtx.restore();
 
-      // 少量散景
       overlayCtx.save();
       overlayCtx.globalCompositeOperation = 'lighter';
       bokehLights.forEach(b => {
@@ -774,7 +757,6 @@
       });
       overlayCtx.restore();
 
-      // 雪花
       overlayCtx.save();
       const img = snowflakeSprite;
       snowflakes.forEach(s => {
@@ -892,7 +874,7 @@
       const renderScene = new RenderPass(scene, camera);
       const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        isMobile ? 0.55 : 0.7, // 手机端稍弱一点 Bloom
+        isMobile ? 0.5 : 0.7,  // 手机再弱一点 Bloom
         0.35,
         1.0
       );
@@ -1182,52 +1164,27 @@
       mainGroup.add(photoMeshGroup);
     }
 
-    function createGarlands() {
-      const h = CONFIG.particles.treeHeight;
-      const halfH = h / 2;
+    function createGlowTexture() {
+      const size = 256;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d');
 
-      const levels = [0.45, 0.70];
+      const grad = ctx.createRadialGradient(
+        size / 2, size / 2, 0,
+        size / 2, size / 2, size / 2
+      );
+      grad.addColorStop(0.0, 'rgba(255,255,255,1.0)');
+      grad.addColorStop(0.35, 'rgba(255,230,170,0.95)');
+      grad.addColorStop(0.7, 'rgba(255,230,170,0.35)');
+      grad.addColorStop(1.0, 'rgba(255,230,170,0.0)');
 
-      levels.forEach((t, idx) => {
-        const y = t * h - halfH;
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, size, size);
 
-        const baseRadius = CONFIG.particles.treeRadius * (1.0 - t);
-        const radius =
-          idx === 0
-            ? baseRadius * 0.55 + 0.15
-            : baseRadius * 0.65 + 0.25;
-
-        const geo = new THREE.TorusGeometry(
-          radius,
-          0.045,
-          24,
-          220
-        );
-        const mat = new THREE.MeshStandardMaterial({
-          color: 0xfff0c4,
-          metalness: 0.95,
-          roughness: 0.25,
-          emissive: 0x775522,
-          emissiveIntensity: 0.14,
-          transparent: true,
-          opacity: 0.12
-        });
-
-        MATERIALS.garlandMats.push(mat);
-
-        const ring = new THREE.Mesh(geo, mat);
-
-        const tiltDeg = idx === 0 ? 10 : 18;
-        const tiltRad = THREE.MathUtils.degToRad(tiltDeg);
-        ring.rotation.z = tiltRad;
-
-        const holder = new THREE.Group();
-        holder.position.y = y;
-        holder.add(ring);
-
-        mainGroup.add(holder);
-        garlandHolders.push(holder);
-      });
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
     }
 
     function createStarTopper() {
@@ -1275,11 +1232,8 @@
       star.rotation.set(0, Math.PI, 0);
       star.castShadow = true;
 
-      const textureLoader = new THREE.TextureLoader();
-      // 修正 glow 贴图地址，避免 404
-      const glowTex = textureLoader.load(
-        'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/textures/sprites/glow.png'
-      );
+      // 使用本地 canvas 生成的 glow 贴图，彻底避免 404
+      const glowTex = createGlowTexture();
       const haloMat = new THREE.SpriteMaterial({
         map: glowTex,
         color: 0xffe6aa,
@@ -1415,13 +1369,12 @@
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-        composer.setSize(window.innerWidth, window.innerHeight);
 
-        // resize 时也按端重新设置 pixelRatio
         const dpr = window.devicePixelRatio || 1;
-        renderer.setPixelRatio(
-          isMobile ? Math.min(dpr, 2.5) : Math.min(dpr, 2)
-        );
+        const maxDpr = isMobile ? 3 : 2;
+        renderer.setPixelRatio(Math.min(dpr, maxDpr));
+
+        composer.setSize(window.innerWidth, window.innerHeight);
       });
 
       window.addEventListener('keydown', e => {

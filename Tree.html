@@ -6,6 +6,10 @@
   <title>Grand Luxury Tree - Ultimate Edition</title>
 
   <style>
+    html, body {
+      height: 100%;
+    }
+
     body {
       margin: 0;
       overflow: hidden;
@@ -13,7 +17,7 @@
       font-family: 'Times New Roman', serif;
     }
 
-    /* 背景雪花 + 渐变散景层（2D，半透明盖在树上） */
+    /* 背景雪花层（2D） */
     #bg-overlay {
       position: absolute;
       inset: 0;
@@ -32,6 +36,14 @@
       z-index: 1;
     }
 
+    /* 兼容新浏览器的动态高度，减少移动端错位 */
+    @supports (height: 100svh) {
+      #canvas-container,
+      #bg-overlay {
+        height: 100svh;
+      }
+    }
+
     /* UI Layer */
     #ui-layer {
       position: absolute;
@@ -46,11 +58,7 @@
       align-items: center;
       padding-top: 3vh;
       box-sizing: border-box;
-      background: radial-gradient(
-        circle at center,
-        transparent 0%,
-        rgba(0, 0, 0, 0.25) 100%
-      );
+      background: transparent;
     }
 
     .ui-hidden {
@@ -117,14 +125,13 @@
       opacity: 0.95;
     }
 
-    .upload-wrapper { display: none; }
     #file-input { display: none; }
 
-    /* 左下整体面板：包含 BGM + 操作说明 */
+    /* 左下角：BGM + 文案 */
     #bottom-left-panel {
       position: absolute;
-      left: 40px;
-      bottom: 30px;
+      left: calc(16px + env(safe-area-inset-left));
+      bottom: calc(20px + env(safe-area-inset-bottom));
       z-index: 20;
       pointer-events: none;
       display: flex;
@@ -188,6 +195,60 @@
       box-shadow: 0 0 10px rgba(212, 175, 55, 0.25);
     }
 
+    /* 右下角颜色盘 */
+    #theme-panel {
+      position: fixed;
+      right: calc(16px + env(safe-area-inset-right));
+      bottom: calc(20px + env(safe-area-inset-bottom));
+      z-index: 30;
+      pointer-events: auto;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(5, 5, 5, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      backdrop-filter: blur(6px);
+    }
+    .theme-dots {
+      display: flex;
+      gap: 8px;
+    }
+    .theme-btn {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+      padding: 0;
+      outline: none;
+      background-size: 180% 180%;
+      background-position: center;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .theme-btn.theme-active {
+      transform: scale(1.15);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+      border-color: #fff;
+    }
+
+    .theme-gold {
+      background-image: linear-gradient(135deg, #f6d48a, #f1b65c, #fef2cf);
+    }
+    .theme-ice {
+      background-image: linear-gradient(135deg, #cfe2ff, #8aa8ff, #f7fbff);
+    }
+    .theme-purple {
+      background-image: linear-gradient(135deg, #f1dfff, #b78ef3, #f6f1ff);
+    }
+    .theme-emerald {
+      background-image: linear-gradient(135deg, #bff4cf, #3b8f63, #f3fff7);
+    }
+    .theme-rose {
+      background-image: linear-gradient(135deg, #ffd4e1, #f08ab1, #fff0f5);
+    }
+
     #webcam-wrapper,
     #webcam,
     #webcam-preview {
@@ -200,8 +261,6 @@
         letter-spacing: 5px;
       }
       #bottom-left-panel {
-        left: 12px;
-        bottom: 12px;
         gap: 6px;
       }
       #bgm-toggle {
@@ -214,6 +273,14 @@
         height: 26px;
         margin-right: 8px;
         font-size: 14px;
+      }
+
+      #theme-panel {
+        padding: 4px 8px;
+      }
+      .theme-btn {
+        width: 14px;
+        height: 14px;
       }
     }
   </style>
@@ -245,13 +312,6 @@
   <div id="ui-layer">
     <h1>MERRY CHRISTMAS</h1>
 
-    <div class="upload-wrapper">
-      <label class="upload-btn">
-        Add Memories
-        <input type="file" id="file-input" multiple accept="image/*" />
-      </label>
-    </div>
-
     <div id="bottom-left-panel">
       <button id="bgm-toggle">
         <span>♪</span><span>音乐 开</span>
@@ -260,13 +320,24 @@
       <div id="instructions">
         <div class="inst-item">
           <span class="inst-icon">✊</span>
-          <span>TREE · 握拳聚拢成树</span>
+          <span>握拳 · 聚拢成树</span>
         </div>
         <div class="inst-item">
           <span class="inst-icon">🖐</span>
-          <span>SCATTER · 张开散成星海</span>
+          <span>张开 · 散成星海</span>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- 右下角颜色盘 -->
+  <div id="theme-panel">
+    <div class="theme-dots">
+      <button class="theme-btn theme-gold theme-active" data-theme="0"></button>
+      <button class="theme-btn theme-ice"                 data-theme="1"></button>
+      <button class="theme-btn theme-purple"              data-theme="2"></button>
+      <button class="theme-btn theme-emerald"             data-theme="3"></button>
+      <button class="theme-btn theme-rose"                data-theme="4"></button>
     </div>
   </div>
 
@@ -275,11 +346,7 @@
     <canvas id="webcam-preview"></canvas>
   </div>
 
-<audio
-  id="bgm"
-  loop
-  src="./christmas-bgm.m4a"
-></audio>
+  <audio id="bgm" loop src="./christmas-bgm.m4a"></audio>
 
   <script type="module">
     import * as THREE from 'three';
@@ -292,6 +359,155 @@
       HandLandmarker,
       DrawingUtils
     } from '@mediapipe/tasks-vision';
+
+    const IS_MOBILE = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    /* ========= 主题配色 ========== */
+    const THEMES = [
+      {
+        label: 'GOLD',
+        bg: 0x050309,
+        overlay: [
+          'rgba(40,32,18,0.22)',
+          'rgba(6,6,10,0.18)',
+          'rgba(90,55,24,0.16)'
+        ],
+        bulbA: 0xf7d58a,
+        bulbB: 0xfff3cf,
+        bulbEmissive: 0x604322,
+        accentA: 0xf8e9cf,
+        accentB: 0xe2c89a,
+        accentEmissive: 0x3e2914,
+        green: 0x14301c,
+        red: 0x8f3b32,
+        dust: 0xfff8e6,
+        garlandA: 0xf5e0b5,
+        garlandB: 0xe0c18d,
+        garlandEmissive: 0x6b4a26,
+        starA: 0xfff4ce,
+        starB: 0xffdd9a,
+        starEmissive: 0xe7b86a,
+        haloA: 0xffe2a0,
+        bgStarA: 0xc0c7df
+      },
+      {
+        label: 'ICE',
+        bg: 0x050914,
+        overlay: [
+          'rgba(46,86,140,0.18)',
+          'rgba(7,13,28,0.16)',
+          'rgba(18,56,120,0.18)'
+        ],
+        bulbA: 0xd7e5ff,
+        bulbB: 0xf7fbff,
+        bulbEmissive: 0x304a7a,
+        accentA: 0xf1f5ff,
+        accentB: 0xd0ddff,
+        accentEmissive: 0x23365a,
+        green: 0x142438,
+        red: 0x5c91ff,
+        dust: 0xf5f8ff,
+        garlandA: 0xd6e6ff,
+        garlandB: 0xadc5f5,
+        garlandEmissive: 0x3b5993,
+        starA: 0xf1f7ff,
+        starB: 0xc7ddff,
+        starEmissive: 0xa3c9ff,
+        haloA: 0xb9d5ff,
+        bgStarA: 0xa7baf5
+      },
+      {
+        label: 'PURPLE',
+        bg: 0x07020f,
+        overlay: [
+          'rgba(102,68,152,0.20)',
+          'rgba(18,8,36,0.16)',
+          'rgba(210,164,255,0.16)'
+        ],
+        bulbA: 0xe7dcff,
+        bulbB: 0xfaf7ff,
+        bulbEmissive: 0x5b3a8e,
+        accentA: 0xf8efe0,
+        accentB: 0xe1c89a,
+        accentEmissive: 0x3b2614,
+        green: 0x22142f,
+        red: 0xf2c99b,
+        dust: 0xfdf7ff,
+        garlandA: 0xe9d9ff,
+        garlandB: 0xd4b6f4,
+        garlandEmissive: 0x6b3b8d,
+        starA: 0xfff5e7,
+        starB: 0xe6c9ff,
+        starEmissive: 0xf3c99c,
+        haloA: 0xf2d9ff,
+        bgStarA: 0xdcc5ff
+      },
+      {
+        label: 'EMERALD',
+        bg: 0x030806,
+        overlay: [
+          'rgba(42,96,72,0.18)',
+          'rgba(5,18,14,0.15)',
+          'rgba(24,84,52,0.18)'
+        ],
+        bulbA: 0xcff9db,
+        bulbB: 0xf4fff9,
+        bulbEmissive: 0x29573f,
+        accentA: 0xf8edd5,
+        accentB: 0xd9c29a,
+        accentEmissive: 0x47311b,
+        green: 0x184635,
+        red: 0xc0a47c,
+        dust: 0xf7fff9,
+        garlandA: 0xd3ffd7,
+        garlandB: 0xa8f3c2,
+        garlandEmissive: 0x3b7a52,
+        starA: 0xf4ffe9,
+        starB: 0xd1f7bf,
+        starEmissive: 0xb4f39a,
+        haloA: 0xc9ffb1,
+        bgStarA: 0xa2f3cf
+      },
+      {
+        label: 'ROSE',
+        bg: 0x12040a,
+        overlay: [
+          'rgba(128,54,86,0.18)',
+          'rgba(20,10,18,0.15)',
+          'rgba(170,78,112,0.18)'
+        ],
+        bulbA: 0xfad0da,
+        bulbB: 0xfff4f7,
+        bulbEmissive: 0x874758,
+        accentA: 0xffe6d8,
+        accentB: 0xf5c9aa,
+        accentEmissive: 0x5b3526,
+        green: 0x3a1a25,
+        red: 0xe58aa5,
+        dust: 0xfff5f7,
+        garlandA: 0xffd1de,
+        garlandB: 0xf4a9c2,
+        garlandEmissive: 0x8d455a,
+        starA: 0xfff0e6,
+        starB: 0xf8d1e0,
+        starEmissive: 0xf0a5bf,
+        haloA: 0xf7dae5,
+        bgStarA: 0xf2b4cf
+      }
+    ];
+
+    const MATERIALS = {
+      goldMat: null,
+      champagneMat: null,
+      greenMat: null,
+      redMat: null,
+      dustMat: null,
+      garlandMats: [],
+      starMat: null
+    };
+    let bgStarMaterial = null;
+
+    let currentThemeIndex = 0;
 
     const CONFIG = {
       colors: {
@@ -336,6 +552,55 @@
     let overlayW = 0, overlayH = 0;
     let snowflakes = [];
     let bokehLights = [];
+    let snowflakeSprite = null;
+
+    function applyTheme(index) {
+      currentThemeIndex = index;
+      const t = THEMES[index];
+
+      if (scene) {
+        scene.background.setHex(t.bg);
+        if (scene.fog) scene.fog.color.setHex(t.bg);
+      }
+
+      if (MATERIALS.goldMat) {
+        MATERIALS.goldMat.color.setHex(t.bulbA);
+        MATERIALS.goldMat.emissive.setHex(t.bulbEmissive);
+        MATERIALS.goldMat.needsUpdate = true;
+      }
+      if (MATERIALS.champagneMat) {
+        MATERIALS.champagneMat.color.setHex(t.accentA);
+        MATERIALS.champagneMat.emissive.setHex(t.accentEmissive);
+        MATERIALS.champagneMat.needsUpdate = true;
+      }
+      if (MATERIALS.greenMat) {
+        MATERIALS.greenMat.color.setHex(t.green);
+        MATERIALS.greenMat.needsUpdate = true;
+      }
+      if (MATERIALS.redMat) {
+        MATERIALS.redMat.color.setHex(t.red);
+        MATERIALS.redMat.needsUpdate = true;
+      }
+      if (MATERIALS.dustMat) {
+        MATERIALS.dustMat.color.setHex(t.dust);
+        MATERIALS.dustMat.needsUpdate = true;
+      }
+      MATERIALS.garlandMats.forEach((mat, idx) => {
+        const c = idx === 0 ? t.garlandA : t.garlandB;
+        mat.color.setHex(c);
+        mat.emissive.setHex(t.garlandEmissive);
+        mat.needsUpdate = true;
+      });
+      if (MATERIALS.starMat) {
+        MATERIALS.starMat.color.setHex(t.starA);
+        MATERIALS.starMat.emissive.setHex(t.starEmissive);
+        MATERIALS.starMat.needsUpdate = true;
+      }
+      if (bgStarMaterial) {
+        bgStarMaterial.color.setHex(t.bgStarA);
+        bgStarMaterial.needsUpdate = true;
+      }
+    }
 
     async function init() {
       initThree();
@@ -349,6 +614,8 @@
       setupPostProcessing();
       setupEvents();
       setupBGM();
+      setupThemeUI();
+      applyTheme(currentThemeIndex);
       initMediaPipe().catch(console.warn);
 
       const loader = document.getElementById('loader');
@@ -358,11 +625,18 @@
       animate();
     }
 
+    function setRendererPixelRatio() {
+      const dpr = window.devicePixelRatio || 1;
+      const maxDpr = IS_MOBILE ? 3.5 : 3;   // 移动端再高一点
+      const target = Math.min(dpr * (IS_MOBILE ? 1.1 : 1.0), maxDpr);
+      renderer.setPixelRatio(target);
+    }
+
     function initThree() {
       const container = document.getElementById('canvas-container');
       scene = new THREE.Scene();
       scene.background = new THREE.Color(CONFIG.colors.bg);
-      scene.fog = new THREE.FogExp2(CONFIG.colors.bg, 0.003);
+      scene.fog = new THREE.FogExp2(CONFIG.colors.bg, 0.00015);
 
       camera = new THREE.PerspectiveCamera(
         45,
@@ -373,16 +647,17 @@
       camera.position.set(0, 0, CONFIG.camera.z);
 
       renderer = new THREE.WebGLRenderer({
-        antialias: false,
+        antialias: true,      // 打开抗锯齿，让边缘更细腻
         powerPreference: 'high-performance',
         stencil: false,
         depth: true
       });
       renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      setRendererPixelRatio();
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 0.78;
-      container.appendChild(renderer.domElement);
+      renderer.toneMappingExposure = 0.48;  // 略微提亮一点
+      const containerEl = document.getElementById('canvas-container');
+      containerEl.appendChild(renderer.domElement);
 
       bgGroup = new THREE.Group();
       scene.add(bgGroup);
@@ -396,6 +671,7 @@
       mainGroup.add(starGroup);
     }
 
+    /* ========== 覆盖层：轻微暗角 + 雪花 ========== */
     function initOverlay() {
       overlayCanvas = document.getElementById('bg-overlay');
       overlayCtx = overlayCanvas.getContext('2d');
@@ -409,32 +685,36 @@
       resizeOverlay();
       window.addEventListener('resize', resizeOverlay);
 
-      const snowCount = 120;
+      const snowCount = 110;
       snowflakes = [];
       for (let i = 0; i < snowCount; i++) {
         snowflakes.push({
           x: Math.random() * overlayW,
           y: Math.random() * overlayH,
-          r: 1 + Math.random() * 2,
+          size: 10 + Math.random() * 22,
           speed: 20 + Math.random() * 30,
           drift: -20 + Math.random() * 40,
-          phase: Math.random() * Math.PI * 2
+          phase: Math.random() * Math.PI * 2,
+          rotation: Math.random() * Math.PI * 2,
+          spin: Math.random() * 0.5 - 0.25
         });
       }
 
-      const bokehCount = 7;
+      const bokehCount = 5;
       bokehLights = [];
       for (let i = 0; i < bokehCount; i++) {
         bokehLights.push({
           x: Math.random() * overlayW,
           y: Math.random() * overlayH,
-          r: 140 + Math.random() * 140,
-          baseAlpha: 0.03 + Math.random() * 0.04,
+          r: 120 + Math.random() * 120,
+          baseAlpha: 0.006 + Math.random() * 0.006,
           phase: Math.random() * Math.PI * 2,
-          driftX: -6 + Math.random() * 12,
-          driftY: -4 + Math.random() * 8
+          driftX: -4 + Math.random() * 8,
+          driftY: -3 + Math.random() * 6
         });
       }
+
+      snowflakeSprite = createSnowflakeSprite();
     }
 
     function renderOverlay(dt) {
@@ -442,13 +722,19 @@
       const w = overlayW, h = overlayH;
       overlayCtx.clearRect(0, 0, w, h);
 
-      const grad = overlayCtx.createLinearGradient(0, 0, w, h);
-      grad.addColorStop(0, 'rgba(50,80,120,0.20)');
-      grad.addColorStop(0.4, 'rgba(5,8,12,0.14)');
-      grad.addColorStop(1, 'rgba(120,60,110,0.24)');
-      overlayCtx.fillStyle = grad;
+      // 轻微暗角
+      overlayCtx.save();
+      const vignette = overlayCtx.createRadialGradient(
+        w / 2, h * 0.45, 0,
+        w / 2, h * 0.45, Math.max(w, h) * 0.9
+      );
+      vignette.addColorStop(0, 'rgba(0,0,0,0)');
+      vignette.addColorStop(1, 'rgba(0,0,0,0.12)');
+      overlayCtx.fillStyle = vignette;
       overlayCtx.fillRect(0, 0, w, h);
+      overlayCtx.restore();
 
+      // 散景
       overlayCtx.save();
       overlayCtx.globalCompositeOperation = 'lighter';
       bokehLights.forEach(b => {
@@ -459,7 +745,7 @@
         if (b.y < -b.r) b.y = h + b.r;
         if (b.y > h + b.r) b.y = -b.r;
 
-        const alpha = b.baseAlpha + Math.sin(STATE.time * 0.4 + b.phase) * 0.02;
+        const alpha = b.baseAlpha + Math.sin(STATE.time * 0.4 + b.phase) * 0.004;
         const radial = overlayCtx.createRadialGradient(
           b.x, b.y, 0, b.x, b.y, b.r
         );
@@ -472,20 +758,108 @@
       });
       overlayCtx.restore();
 
+      // 雪花
       overlayCtx.save();
-      overlayCtx.fillStyle = 'rgba(255,255,255,0.9)';
+      const img = snowflakeSprite;
       snowflakes.forEach(s => {
         s.y += s.speed * dt;
         s.x += Math.sin(STATE.time * 0.7 + s.phase) * (s.drift * dt);
-        if (s.y > h + 10) {
-          s.y = -10;
+        s.rotation += s.spin * dt;
+
+        const maxY = h + s.size;
+        if (s.y > maxY) {
+          s.y = -s.size;
           s.x = Math.random() * w;
         }
-        overlayCtx.beginPath();
-        overlayCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        overlayCtx.fill();
+
+        if (img) {
+          overlayCtx.save();
+          overlayCtx.translate(s.x, s.y);
+          overlayCtx.rotate(s.rotation);
+          const scale = s.size / img.width;
+          overlayCtx.scale(scale, scale);
+          overlayCtx.globalAlpha =
+            0.25 + 0.25 * Math.sin(STATE.time * 1.5 + s.phase);
+          overlayCtx.drawImage(img, -img.width / 2, -img.height / 2);
+          overlayCtx.restore();
+        } else {
+          overlayCtx.fillStyle = 'rgba(255,255,255,0.8)';
+          overlayCtx.beginPath();
+          overlayCtx.arc(s.x, s.y, s.size * 0.3, 0, Math.PI * 2);
+          overlayCtx.fill();
+        }
       });
       overlayCtx.restore();
+    }
+
+    function createSnowflakeSprite() {
+      const size = 48;
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const ctx = c.getContext('2d');
+
+      ctx.clearRect(0, 0, size, size);
+      ctx.translate(size / 2, size / 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.98)';
+      ctx.lineWidth = 1.4;
+      ctx.lineCap = 'round';
+
+      const arms = 6;
+      const radius = size * 0.35;
+      const branchOffset = Math.PI / 8;
+
+      for (let i = 0; i < arms; i++) {
+        const angle = (Math.PI * 2 * i) / arms;
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+
+        ctx.beginPath();
+        ctx.moveTo(cos * radius * 0.12, sin * radius * 0.12);
+        ctx.lineTo(cos * radius, sin * radius);
+        ctx.stroke();
+
+        const baseR = radius * 0.55;
+        [baseR * 0.75, baseR].forEach(r => {
+          const bx = cos * r;
+          const by = sin * r;
+
+          ctx.beginPath();
+          ctx.moveTo(bx, by);
+          ctx.lineTo(
+            bx + Math.cos(angle + branchOffset) * radius * 0.25,
+            by + Math.sin(angle + branchOffset) * radius * 0.25
+          );
+          ctx.moveTo(bx, by);
+          ctx.lineTo(
+            bx + Math.cos(angle - branchOffset) * radius * 0.25,
+            by + Math.sin(angle - branchOffset) * radius * 0.25
+          );
+          ctx.stroke();
+        });
+      }
+
+      return c;
+    }
+
+    /* 顶部星星用的本地光晕纹理，替代外链 glow.png */
+    function createGlowTexture() {
+      const size = 256;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d');
+
+      const grad = ctx.createRadialGradient(
+        size / 2, size / 2, 0,
+        size / 2, size / 2, size / 2
+      );
+      grad.addColorStop(0.0, 'rgba(255,255,255,1.0)');
+      grad.addColorStop(0.35, 'rgba(255,230,170,0.95)');
+      grad.addColorStop(0.7, 'rgba(255,230,170,0.35)');
+      grad.addColorStop(1.0, 'rgba(255,230,170,0.0)');
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
     }
 
     function setupEnvironment() {
@@ -501,11 +875,11 @@
       const ambient = new THREE.AmbientLight(0xffffff, 0.22);
       scene.add(ambient);
 
-      const bottomLight = new THREE.PointLight(CONFIG.colors.gold, 3.2, 40);
+      const bottomLight = new THREE.PointLight(CONFIG.colors.gold, 2.2, 40);
       bottomLight.position.set(0, -10, 10);
       mainGroup.add(bottomLight);
 
-      const spotGold = new THREE.SpotLight(0xfff0dd, 820);
+      const spotGold = new THREE.SpotLight(0xfff0dd, 450);
       spotGold.position.set(40, 60, 40);
       spotGold.angle = 0.4;
       spotGold.penumbra = 0.5;
@@ -513,7 +887,7 @@
       spotGold.distance = 200;
       scene.add(spotGold);
 
-      const spotBlue = new THREE.SpotLight(0x4455ff, 380);
+      const spotBlue = new THREE.SpotLight(0x4455ff, 220);
       spotBlue.position.set(-40, 10, -30);
       spotBlue.lookAt(0, 0, 0);
       scene.add(spotBlue);
@@ -523,8 +897,8 @@
       const renderScene = new RenderPass(scene, camera);
       const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.85,
-        0.35,
+        0.65,   // 略微减一点 Bloom，提高“清晰感”
+        0.3,
         1.0
       );
       composer = new EffectComposer(renderer);
@@ -577,12 +951,14 @@
         new THREE.BufferAttribute(positions, 3)
       );
       const material = new THREE.PointsMaterial({
-        color: 0xbbc7da,
+        color: THEMES[currentThemeIndex].bgStarA,
         size: 0.9,
         transparent: true,
-        opacity: 0.65,
+        opacity: 0.6,
         sizeAttenuation: true
       });
+
+      bgStarMaterial = material;
 
       const points = new THREE.Points(geometry, material);
       bgGroup.add(points);
@@ -675,7 +1051,7 @@
         if (this.hasEmissive && mode === 'TREE' && !this.isDust) {
           const blink = Math.sin(time * 2.3 + this.offset);
           this.mesh.material.emissiveIntensity =
-            0.18 + Math.max(0, blink) * 0.5;
+            0.16 + Math.max(0, blink) * 0.4;
         }
 
         let s = this.baseScale;
@@ -683,7 +1059,7 @@
           s = this.baseScale *
               (0.5 + 0.5 * Math.sin(time * 3 + this.offset));
         } else if (mode === 'SCATTER') {
-          s = this.baseScale * 1.15;
+          s = this.baseScale * 1.1;
         }
 
         this.mesh.scale.lerp(new THREE.Vector3(s, s, s), 5 * dt);
@@ -712,19 +1088,19 @@
       const goldMat = new THREE.MeshStandardMaterial({
         color: CONFIG.colors.gold,
         metalness: 1.0,
-        roughness: 0.18,
-        envMapIntensity: 2.2,
+        roughness: 0.2,
+        envMapIntensity: 1.7,
         emissive: 0x553300,
-        emissiveIntensity: 0.18
+        emissiveIntensity: 0.14
       });
 
       const champagneMat = new THREE.MeshStandardMaterial({
         color: CONFIG.colors.champagne,
         metalness: 0.9,
-        roughness: 0.22,
-        envMapIntensity: 2.0,
+        roughness: 0.24,
+        envMapIntensity: 1.6,
         emissive: 0x332211,
-        emissiveIntensity: 0.16
+        emissiveIntensity: 0.12
       });
 
       const greenMat = new THREE.MeshStandardMaterial({
@@ -742,7 +1118,7 @@
         clearcoat: 0.9,
         clearcoatRoughness: 0.15,
         emissive: 0x330000,
-        emissiveIntensity: 0.25
+        emissiveIntensity: 0.22
       });
 
       const candyMat = new THREE.MeshStandardMaterial({
@@ -754,9 +1130,15 @@
 
       const dustGeo = new THREE.OctahedronGeometry(0.1, 0);
       const dustMat = new THREE.MeshBasicMaterial({
-        color: 0xfffff2,
+        color: 0xfffbe0,
         blending: THREE.AdditiveBlending
       });
+
+      MATERIALS.goldMat = goldMat;
+      MATERIALS.champagneMat = champagneMat;
+      MATERIALS.greenMat = greenMat;
+      MATERIALS.redMat = redMat;
+      MATERIALS.dustMat = dustMat;
 
       for (let i = 0; i < CONFIG.particles.count; i++) {
         const rand = Math.random();
@@ -805,7 +1187,6 @@
       mainGroup.add(photoMeshGroup);
     }
 
-    // 花环：圈保持水平 + 小倾斜；holder 只绕 Y 轴转
     function createGarlands() {
       const h = CONFIG.particles.treeHeight;
       const halfH = h / 2;
@@ -818,12 +1199,12 @@
         const baseRadius = CONFIG.particles.treeRadius * (1.0 - t);
         const radius =
           idx === 0
-            ? baseRadius * 0.55 + 0.15   // 上圈更小
-            : baseRadius * 0.65 + 0.25;  // 下圈稍微大一点
+            ? baseRadius * 0.55 + 0.15
+            : baseRadius * 0.65 + 0.25;
 
         const geo = new THREE.TorusGeometry(
           radius,
-          0.045,   // 更细
+          0.045,
           24,
           220
         );
@@ -834,13 +1215,13 @@
           emissive: 0x775522,
           emissiveIntensity: 0.14,
           transparent: true,
-          opacity: 0.12   // 更虚
+          opacity: 0.12
         });
+
+        MATERIALS.garlandMats.push(mat);
 
         const ring = new THREE.Mesh(geo, mat);
 
-        // Torus 默认就在 XZ 平面，所以不用再转 x 轴
-        // 只给一点 z 轴倾斜（<< 35°）
         const tiltDeg = idx === 0 ? 10 : 18;
         const tiltRad = THREE.MathUtils.degToRad(tiltDeg);
         ring.rotation.z = tiltRad;
@@ -854,22 +1235,21 @@
       });
     }
 
-    // 顶部五角星：固定一个尖朝上，并绕 Y 轴翻转 180°
     function createStarTopper() {
-      const starShape = new THREE.Shape();
-      const outerR = 1.7;
-      const innerR = 0.75;
-      const points = 5;
+      const shape = new THREE.Shape();
+      const arms = 6;
+      const outerR = 1.8;
+      const innerR = 0.7;
 
-      for (let i = 0; i < points * 2; i++) {
+      for (let i = 0; i < arms * 2; i++) {
         const r = i % 2 === 0 ? outerR : innerR;
-        const angle = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+        const angle = (i / (arms * 2)) * Math.PI * 2 - Math.PI / 2;
         const x = Math.cos(angle) * r;
         const y = Math.sin(angle) * r;
-        if (i === 0) starShape.moveTo(x, y);
-        else starShape.lineTo(x, y);
+        if (i === 0) shape.moveTo(x, y);
+        else shape.lineTo(x, y);
       }
-      starShape.closePath();
+      shape.closePath();
 
       const extrudeSettings = {
         depth: 0.5,
@@ -879,7 +1259,7 @@
         bevelSegments: 4
       };
 
-      const starGeo = new THREE.ExtrudeGeometry(starShape, extrudeSettings);
+      const starGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
       starGeo.center();
 
       const starMat = new THREE.MeshPhysicalMaterial({
@@ -889,30 +1269,29 @@
         clearcoat: 1.0,
         clearcoatRoughness: 0.05,
         emissive: 0xffd890,
-        emissiveIntensity: 0.9,
+        emissiveIntensity: 0.8,
         reflectivity: 1.0
       });
 
+      MATERIALS.starMat = starMat;
+
       const star = new THREE.Mesh(starGeo, starMat);
       star.position.set(0, CONFIG.particles.treeHeight / 2 + 1.2, 0);
-      // 一个尖朝上 + 绕 Y 轴翻转 180°
       star.rotation.set(0, Math.PI, 0);
       star.castShadow = true;
 
-      const textureLoader = new THREE.TextureLoader();
-      const glowTex = textureLoader.load(
-        'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/sprites/glow.png'
-      );
+      // 使用本地生成的 glow 纹理，光晕略小、略柔
+      const glowTex = createGlowTexture();
       const haloMat = new THREE.SpriteMaterial({
         map: glowTex,
         color: 0xffe6aa,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         transparent: true,
-        opacity: 0.32
+        opacity: 0.2     // 之前 0.26，稍微更轻一点
       });
       const halo = new THREE.Sprite(haloMat);
-      halo.scale.set(7, 7, 7);
+      halo.scale.set(5, 5, 5);   // 之前 7 → 光晕更小
       star.add(halo);
 
       starGroup.add(star);
@@ -1035,10 +1414,13 @@
 
     function setupEvents() {
       window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        camera.aspect = w / h;
         camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        composer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setSize(w, h);
+        setRendererPixelRatio();      // 旋转屏幕时重新按 DPR 设置清晰度
+        composer.setSize(w, h);
       });
 
       window.addEventListener('keydown', e => {
@@ -1069,6 +1451,18 @@
         },
         { passive: true }
       );
+    }
+
+    function setupThemeUI() {
+      const buttons = document.querySelectorAll('.theme-btn');
+      buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.dataset.theme, 10);
+          applyTheme(idx);
+          buttons.forEach(b => b.classList.remove('theme-active'));
+          btn.classList.add('theme-active');
+        });
+      });
     }
 
     function setupBGM() {
@@ -1138,7 +1532,7 @@
       bgGroup.rotation.z += 0.02 * dt;
 
       if (STATE.starMesh) {
-        const s = 0.96 + Math.sin(STATE.time * 1.8) * 0.06;
+        const s = 0.96 + Math.sin(STATE.time * 1.8) * 0.05;
         STATE.starMesh.scale.set(s, s, s);
       }
 
@@ -1147,7 +1541,7 @@
         const ring = holder.children[0];
         if (ring && ring.material) {
           ring.material.emissiveIntensity =
-            0.14 + Math.sin(STATE.time * 1.2 + idx) * 0.10;
+            0.14 + Math.sin(STATE.time * 1.2 + idx) * 0.08;
         }
       });
 
